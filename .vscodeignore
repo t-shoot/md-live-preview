@@ -1,0 +1,15 @@
+.vscode/**
+.vscode-test/**
+.playwright-mcp/**
+.claude/**
+node_modules/**
+src/**
+specs/**
+sumple/**
+esbuild.js
+tsconfig.json
+package-lock.json
+.gitignore
+**/.eslintrc.json
+**/*.map
+**/*.ts

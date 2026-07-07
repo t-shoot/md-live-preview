@@ -3,7 +3,17 @@
   "displayName": "Markdown Live Preview",
   "description": "Obsidian-style editable live Markdown preview with custom CSS themes, Mermaid diagrams, and syntax-highlighted code blocks.",
   "version": "0.0.1",
-  "private": true,
+  "publisher": "t-shoot",
+  "license": "MIT",
+  "icon": "media/icon-128.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/t-shoot/md-live-preview.git"
+  },
+  "bugs": {
+    "url": "https://github.com/t-shoot/md-live-preview/issues"
+  },
+  "homepage": "https://github.com/t-shoot/md-live-preview#readme",
   "engines": {
     "vscode": "^1.90.0"
   },
