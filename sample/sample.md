@@ -1,73 +1,102 @@
 ---
-title: サンプル文書
+title: Markdown Live Preview Editor の使い方
 tags:
   - markdown
   - live-preview
+  - showcase
 ---
 
-# Heading 1
+# Markdown Live Preview Editor
 
-## Heading 2
+**書いた見た目のまま**編集できる、Markdownのライブプレビュー拡張機能です。
 
-This paragraph has **bold text**, *italic text*, ~~strikethrough~~, and `inline code`.
+このドキュメントを実際に編集してみてください。カーソルが乗っていない行は装飾された見た目のまま、カーソルが乗った行だけ`**`や`#`が生のMarkdown記法として見えます。
 
-> A blockquote that
-> spans two lines.
+## なぜObsidianライクなのか
 
-- Bullet item one
-- Bullet item two
-1. Ordered item one
-2. Ordered item two
+VS Code標準のMarkdownプレビューは、編集用のペインとプレビュー用のペインが左右に分かれています。この拡張機能はその2つを1つにまとめ、*プレビューそのものを直接編集*できるようにします。
 
-- [ ] An unchecked task
-- [x] A checked task
+> 保存されるファイルの中身は、常に素のMarkdownです。
+> 特殊な独自フォーマットに変換されることはありません。
 
----
+## 主な機能
 
-A [link to example](https://example.com "Example Title") and an image:
+- ライブプレビュー編集(このドキュメントもその場で編集できます)
+- シンタックスハイライト付きコードブロック
+- Mermaidダイアグラムのその場描画
+- サイドバーから切り替えられるCSSテーマ
+- ~~生のMarkdownソースだけを見ながら書くつらさ~~ ← これとはもうお別れ
 
-![placeholder image](https://via.placeholder.com/150)
+### 導入手順
 
-```java
-class Greeter {
-    public static void main(String[] args) {
-        System.out.println("Hello, world!");
-    }
-}
+1. VS Codeの拡張機能ビューで検索してインストールする
+2. `.md`ファイルを開き、タイトルバーの切替アイコンをクリックする
+3. プレビュー上で直接編集を始める
+
+### 進捗メモ
+
+- [x] プレビューをそのまま編集できるようにする
+- [x] コードブロックを色分け表示する
+- [ ] テーブルの生編集をもっと滑らかにする
+
+## コード例
+
+`inline code`だけでなく、フェンス付きのコードブロックも言語ごとに色分けされます。
+
+```python
+def toggle_live_preview(path: str) -> None:
+    """.md を開いたときに、装飾されたプレビューへ自動で切り替える"""
+    print(f"{path} をライブプレビューで開きました")
 ```
 
-```mermaid
-flowchart TD
-    A[Start] --> B{Is it working?}
-    B -- Yes --> C[Ship it]
-    B -- No --> D[Debug]
-    D --> B
-```
-
-A larger diagram, for checking that Mermaid renders at full size instead of shrinking to fit (drag to pan, Ctrl+wheel or the +/- toolbar to zoom):
+## 仕組み
 
 ```mermaid
 flowchart LR
-    subgraph Inception
-        WD[Workspace Detection] --> RA[Requirements Analysis]
-        RA --> US[User Stories]
-        US --> WP[Workflow Planning]
-    end
-    subgraph Construction
-        FD[Functional Design] --> NFRA[NFR Requirements]
-        NFRA --> NFRD[NFR Design]
-        NFRD --> ID[Infrastructure Design]
-        ID --> CG[Code Generation]
-        CG --> BT[Build and Test]
-    end
-    subgraph Operations
-        OPS[Operations]
-    end
-    WP --> FD
-    BT --> OPS
+    A[書く] --> B{カーソルが乗っている?}
+    B -- はい --> C[生のMarkdown記法を表示]
+    B -- いいえ --> D[装飾された見た目を表示]
 ```
 
-| Column A | Column B |
-| -------- | -------- |
-| 1        | 2        |
-| 3        | 4        |
+もう少し大きな図でも、縮小されずそのままのサイズで描画されます(ドラッグでパン、`Ctrl`+ホイールまたはツールバーの+/-でズーム)。
+
+```mermaid
+flowchart TD
+    subgraph 書く人の操作
+        A[Markdownファイルを開く] --> B[ライブプレビューに切替]
+        B --> C[装飾された見た目のまま編集]
+    end
+    subgraph 保存されるもの
+        D[素のMarkdown]
+    end
+    subgraph 見た目のカスタマイズ
+        E[サイドバーでCSSテーマを選択] --> F[プレビューに即時反映]
+    end
+    C -->|保存| D
+    C --> E
+    F --> C
+    C --> G[コードブロックを色分け表示]
+    C --> H[Mermaidをその場でSVG描画]
+    G --> C
+    H --> C
+```
+
+## 見た目のカスタマイズ
+
+サイドバーの「CSS Themes」から、プレビューの見た目を変えるスタイルを切り替えられます。
+
+![サンプル画像(ネットワーク経由で読み込み)](https://picsum.photos/id/1015/480/270)
+
+もっと詳しく知りたい方は[GitHubリポジトリ](https://github.com/t-shoot/md-live-preview-editor)もご覧ください。
+
+---
+
+## 対応フォーマット早見表
+
+| 記法 | 表示 |
+| --- | --- |
+| 見出し | `#`〜`######` |
+| 強調 | `**太字**` / `*斜体*` |
+| リスト | 箇条書き・番号付き・タスク |
+| コード | インライン・フェンス付き(色分け) |
+| 図 | Mermaidをその場でSVG描画 |
