@@ -1,12 +1,15 @@
 import { EditorState, Annotation, type Extension, ChangeSet } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { livePreviewPlugin, createLinkClickHandler } from './livePreviewPlugin';
 import { codeHighlightExtension, setCodeTokens } from './codeHighlightPlugin';
 import { blockDecorationsField } from './blockDecorations';
 import { detectFrontmatter } from './frontmatterWidget';
+import { headingSpaceInputHandler } from './headingSpacePlugin';
+import { backtickInputHandler } from './backtickPairPlugin';
 import { postToHost, onHostMessage } from './vscodeApi';
 import { adaptMarkdownCss } from '../shared/cssAdapter';
 import type { TextChange } from '../shared/messages';
@@ -57,13 +60,24 @@ function applyUserCss(css: string) {
 }
 
 function createExtensions(): Extension[] {
+	const markdownSupport = markdown({ extensions: GFM });
 	return [
-		markdown({ extensions: GFM }),
+		markdownSupport,
+		// Extend closeBrackets' default pair set (`( [ { ' "`) with the emphasis
+		// marks so `*bold/italic*` and `_italic_` also auto-pair and wrap a
+		// selection when typed — the same mechanism VS Code and most editors use
+		// for quotes. Backtick is deliberately left out here: it's handled by its
+		// own `backtickInputHandler` below (see that file for why).
+		markdownSupport.language.data.of({ closeBrackets: { brackets: ['(', '[', '{', "'", '"', '*', '_'] } }),
+		closeBrackets(),
+		headingSpaceInputHandler,
+		backtickInputHandler,
 		livePreviewPlugin,
 		blockDecorationsField,
 		codeHighlightExtension,
 		createLinkClickHandler((href) => postToHost({ type: 'openLink', href })),
 		keymap.of([
+			...closeBracketsKeymap,
 			// Flush any not-yet-sent keystrokes before asking the host to undo/redo —
 			// otherwise the host's document is missing the latest edits when it acts,
 			// undoing the wrong change and leaving the webview's local text duplicated
