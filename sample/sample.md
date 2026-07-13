@@ -1,3 +1,10 @@
+---
+title: サンプル文書
+tags:
+  - markdown
+  - live-preview
+---
+
 # Heading 1
 
 ## Heading 2
