@@ -17,9 +17,17 @@ const SAMPLES_VERSION_KEY = 'mdLivePreview.samplesVersion';
 // request, replaced by the VS Code-standard `vscode.css` sample). If one of
 // these was the active theme, the selection falls back to the default sample.
 const REMOVED_SAMPLE_NAMES = ['GitHub-like.css', 'Obsidian-like.css', 'DADS-light.css', 'GitHub.css', 'Zenn.css'];
-// The pre-rename bundled name for what is now `github-like.css` (DEFAULT_STYLE_NAME).
+// The pre-rename bundled name for what is now `github-like.css` (GITHUB_LIKE_STYLE_NAME).
 const LEGACY_GITHUB_NAME = 'github.css';
-const DEFAULT_STYLE_NAME = 'github-like.css';
+const GITHUB_LIKE_STYLE_NAME = 'github-like.css';
+// Theme selected on a fresh install, and the fallback whenever nothing valid
+// is currently enabled (e.g. the previously-enabled theme was just removed by
+// a migration below). Kept as its own constant, distinct from
+// `GITHUB_LIKE_STYLE_NAME`: that one is also the *rename target* for the old
+// `github.css` → `github-like.css` migration, and a user who had `github.css`
+// active should keep landing on its renamed successor, not be switched to
+// this default.
+const DEFAULT_STYLE_NAME = 'vscode.css';
 // Bundled sample themes, shipped as real .css files under media/sample-styles/
 // (not embedded as TS strings) so they're easy to review/maintain and can be
 // read directly with `vscode.workspace.fs`. Written into global storage once on
@@ -85,15 +93,15 @@ export class StyleStore {
 		// One-time rename migration: the old bundled `github.css` becomes
 		// `github-like.css`, preserving the user's own edits to it (unlike the
 		// delete-and-reseed samples below, which are fully discontinued).
-		if (existing.has(LEGACY_GITHUB_NAME) && !existing.has(DEFAULT_STYLE_NAME)) {
+		if (existing.has(LEGACY_GITHUB_NAME) && !existing.has(GITHUB_LIKE_STYLE_NAME)) {
 			try {
 				await vscode.workspace.fs.rename(
 					vscode.Uri.joinPath(dir, LEGACY_GITHUB_NAME),
-					vscode.Uri.joinPath(dir, DEFAULT_STYLE_NAME),
+					vscode.Uri.joinPath(dir, GITHUB_LIKE_STYLE_NAME),
 					{ overwrite: false },
 				);
 				if (this.getEnabledIds().includes(LEGACY_GITHUB_NAME)) {
-					await this.setEnabledIds([DEFAULT_STYLE_NAME]);
+					await this.setEnabledIds([GITHUB_LIKE_STYLE_NAME]);
 				}
 				existing = new Set((await this.listAllStyleFiles()).map((f) => f.name));
 			} catch {
