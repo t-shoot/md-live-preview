@@ -2,10 +2,9 @@ import { EditorState, Annotation, type Extension, ChangeSet } from '@codemirror/
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
-import { search, searchKeymap, openSearchPanel } from '@codemirror/search';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
-import { livePreviewPlugin, createLinkClickHandler } from './livePreviewPlugin';
+import { livePreviewPlugin, createLinkClickHandler, setImageBaseUri } from './livePreviewPlugin';
 import { codeHighlightExtension, setCodeTokens } from './codeHighlightPlugin';
 import { blockDecorationsField } from './blockDecorations';
 import { detectFrontmatter } from './frontmatterWidget';
@@ -62,17 +61,6 @@ function applyUserCss(css: string) {
 	styleEl.textContent = adaptMarkdownCss(css);
 }
 
-// The default search panel from @codemirror/search always renders both a
-// search field and a replace field together (there is no separate "replace
-// panel"). Opening it via Ctrl+H focuses the replace field instead of the
-// search field, so a user reaching for "replace" lands where they meant to
-// type immediately, rather than having to Tab past the search field first.
-function openReplacePanel(view: EditorView): boolean {
-	openSearchPanel(view);
-	view.dom.querySelector<HTMLInputElement>('.cm-search input[name="replace"]')?.focus();
-	return true;
-}
-
 function createExtensions(): Extension[] {
 	const markdownSupport = markdown({ extensions: GFM });
 	return [
@@ -90,12 +78,11 @@ function createExtensions(): Extension[] {
 		blockDecorationsField,
 		codeHighlightExtension,
 		createLinkClickHandler((href) => postToHost({ type: 'openLink', href })),
-		createImagePasteHandler((atPos, mimeType, dataBase64) => postToHost({ type: 'pasteImage', atPos, mimeType, dataBase64 })),
-		search(),
+		createImagePasteHandler((atPos, mimeType, dataBase64, needsOwnParagraph) =>
+			postToHost({ type: 'pasteImage', atPos, mimeType, dataBase64, needsOwnParagraph }),
+		),
 		keymap.of([
 			...closeBracketsKeymap,
-			...searchKeymap,
-			{ key: 'Mod-h', run: openReplacePanel },
 			// Flush any not-yet-sent keystrokes before asking the host to undo/redo —
 			// otherwise the host's document is missing the latest edits when it acts,
 			// undoing the wrong change and leaving the webview's local text duplicated
@@ -165,6 +152,7 @@ onHostMessage((message) => {
 	switch (message.type) {
 		case 'init':
 			baseVersion = message.version;
+			setImageBaseUri(message.baseUri);
 			applyUserCss(message.css);
 			resetView(message.text);
 			break;

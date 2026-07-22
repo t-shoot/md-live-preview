@@ -1,6 +1,40 @@
 import { EditorView } from '@codemirror/view';
+import { syntaxTree } from '@codemirror/language';
+import type { SyntaxNode } from '@lezer/common';
+import type { EditorState } from '@codemirror/state';
 
-export type ImagePasteCallback = (atPos: number, mimeType: string, dataBase64: string) => void;
+export type ImagePasteCallback = (
+	atPos: number,
+	mimeType: string,
+	dataBase64: string,
+	needsOwnParagraph: boolean,
+) => void;
+
+export interface InsertionPoint {
+	pos: number;
+	/** True when `pos` was moved out of a table — the caller should separate
+	 * the inserted text from surrounding content with a blank line. */
+	needsOwnParagraph: boolean;
+}
+
+/**
+ * If `pos` sits inside a `Table` block, relocates the insertion point to
+ * just after the table instead. Inserting `![](...)` at a raw position
+ * inside a table's source gets absorbed as literal cell/row text — it
+ * doesn't render as an image, and the malformed row can make the table
+ * appear to lose content the next time it's re-parsed (e.g. entering it to
+ * edit again). Any other ancestor block (paragraph, list item, blockquote,
+ * fenced code) is left alone; only a `Table` is structurally fragile enough
+ * for a stray inserted line to corrupt.
+ */
+export function escapeTable(state: EditorState, pos: number): InsertionPoint {
+	let node: SyntaxNode | null = syntaxTree(state).resolveInner(pos, -1);
+	while (node) {
+		if (node.name === 'Table') return { pos: node.to, needsOwnParagraph: true };
+		node = node.parent;
+	}
+	return { pos, needsOwnParagraph: false };
+}
 
 // Only the first image among multiple pasted/dropped items is handled — the
 // common case (a single screenshot) covers the vast majority of real use;
@@ -49,16 +83,17 @@ export function createImagePasteHandler(onImage: ImagePasteCallback) {
 			const file = findImageFile(event.clipboardData?.items);
 			if (!file) return false; // not an image — let normal text paste proceed untouched
 			event.preventDefault();
-			const atPos = view.state.selection.main.from;
-			void readAsBase64(file).then((dataBase64) => onImage(atPos, file.type, dataBase64));
+			const { pos, needsOwnParagraph } = escapeTable(view.state, view.state.selection.main.from);
+			void readAsBase64(file).then((dataBase64) => onImage(pos, file.type, dataBase64, needsOwnParagraph));
 			return true;
 		},
 		drop(event, view) {
 			const file = findImageFileInList(event.dataTransfer?.files);
 			if (!file) return false;
 			event.preventDefault();
-			const atPos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.from;
-			void readAsBase64(file).then((dataBase64) => onImage(atPos, file.type, dataBase64));
+			const dropPos = view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.from;
+			const { pos, needsOwnParagraph } = escapeTable(view.state, dropPos);
+			void readAsBase64(file).then((dataBase64) => onImage(pos, file.type, dataBase64, needsOwnParagraph));
 			return true;
 		},
 	});

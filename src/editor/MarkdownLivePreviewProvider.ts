@@ -31,6 +31,10 @@ export class MarkdownLivePreviewProvider implements vscode.CustomTextEditorProvi
 			localResourceRoots: [
 				vscode.Uri.joinPath(this.context.extensionUri, 'dist'),
 				vscode.Uri.joinPath(this.context.extensionUri, 'media'),
+				// The document's own folder — local image references (e.g.
+				// `![](assets/foo.png)`, including ones this extension's own
+				// paste/drop feature inserts) resolve relative to here.
+				vscode.Uri.joinPath(document.uri, '..'),
 			],
 		};
 		webviewPanel.webview.html = this.buildHtml(webviewPanel.webview);

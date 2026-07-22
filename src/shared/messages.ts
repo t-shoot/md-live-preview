@@ -19,7 +19,10 @@ export interface CodeBlockTokens {
 }
 
 export type HostToEditorMessage =
-	| { type: 'init'; text: string; version: number; css: string; codeTheme: string }
+	// `baseUri` is the webview-loadable URI (with a trailing slash) of the
+	// folder containing the document, used to resolve relative image paths
+	// (e.g. `assets/foo.png`) to something the webview is actually allowed to load.
+	| { type: 'init'; text: string; version: number; css: string; codeTheme: string; baseUri: string }
 	| { type: 'externalUpdate'; changes: TextChange[]; version: number }
 	| { type: 'ackEdit'; version: number }
 	| { type: 'codeTokens'; blocks: CodeBlockTokens[] }
@@ -33,7 +36,7 @@ export type EditorToHostMessage =
 	| { type: 'undo' }
 	| { type: 'redo' }
 	| { type: 'openLink'; href: string }
-	| { type: 'pasteImage'; atPos: number; mimeType: string; dataBase64: string };
+	| { type: 'pasteImage'; atPos: number; mimeType: string; dataBase64: string; needsOwnParagraph: boolean };
 
 export interface StyleEntry {
 	id: string;

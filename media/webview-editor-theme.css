@@ -12,6 +12,14 @@ html, body {
 
 .cm-editor {
 	height: 100%;
+	/* Clips the floating search/replace panel (see the `.cm-panel.cm-search`
+	   rule below) to the editor's own box. Without this, the panel — now
+	   absolutely positioned outside the normal document flow — could extend
+	   past `.cm-editor`'s edge at narrower widths and grow the *page's* own
+	   scrollable area, producing an extra scrollbar alongside `.cm-scroller`'s
+	   own. `.cm-scroller` still handles all real content scrolling on its own,
+	   so clipping here doesn't affect normal document scrolling. */
+	overflow: hidden;
 	/* Append Japanese fallbacks so CJK glyphs render with a proper font when the
 	   editor font lacks them. */
 	font-family: var(--vscode-editor-font-family, monospace), "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
@@ -386,4 +394,142 @@ table.mlp-frontmatter td pre {
 	font-family: var(--vscode-editor-font-family, monospace);
 	white-space: pre-wrap;
 	padding: 0.5em;
+}
+
+/* ── Search / replace panel (@codemirror/search) ─────────────────────────────
+   CURRENTLY UNUSED: the `search()` extension and its keybindings were pulled
+   out of src/webview-editor/main.ts (feature parked pending a further design
+   pass), so `.cm-search` never mounts and none of this applies right now.
+   Left in place — not deleted — since the panel isn't gone for good, just
+   held back from this release; re-adding the wiring in main.ts picks this
+   styling back up unchanged.
+
+   The library's default look is a plain gray bar, full width, that pushes the
+   document down — restyled here to float top-right and overlay the content
+   instead, like VS Code's own Find/Replace widget, using `--vscode-*` theme
+   variables so it matches whichever color theme is active.
+
+   `!important` throughout: @codemirror/search injects its own baseTheme rules
+   (e.g. `.cm-panel.cm-search { position: relative; padding: … }`) at the same
+   class-based specificity as the selectors below, and does so at *runtime*
+   (only once the search extension actually mounts) — later than this
+   stylesheet's own `<link>`, so on tied specificity its rules win the
+   cascade. Same reason `.cm-selectionBackground` above needs `!important`
+   against CodeMirror's own dynamically-injected styles.
+
+   `.cm-editor`'s own wrapper element is already `position: relative` (set
+   inline by CodeMirror when constructed with a `parent`), so the panel here
+   anchors to the editor pane itself — and, since `.cm-panels-top` sits
+   *outside* the scrolling `.cm-scroller`, it stays pinned in place regardless
+   of how far the document is scrolled, matching VS Code's behavior. */
+.cm-panels.cm-panels-top {
+	position: static !important;
+	background: transparent !important;
+	border-bottom: none !important;
+}
+.cm-panel.cm-search,
+.cm-panels-top .cm-dialog {
+	position: absolute !important;
+	top: 8px !important;
+	right: 24px !important; /* clears the scrollbar */
+	left: auto !important;
+	z-index: 301 !important;
+	box-sizing: border-box !important;
+	width: 380px !important;
+	max-width: min(380px, calc(100% - 48px)) !important;
+	padding: 6px 28px 6px 8px !important; /* right padding clears the close button */
+	background: var(--vscode-editorWidget-background, #252526) !important;
+	color: var(--vscode-editorWidget-foreground, inherit) !important;
+	border: 1px solid var(--vscode-editorWidget-border, rgba(127, 127, 127, 0.35)) !important;
+	border-radius: 4px !important;
+	box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36)) !important;
+	font-size: 12px !important;
+	line-height: 1.9 !important;
+}
+
+.cm-search .cm-textfield,
+.cm-dialog .cm-textfield {
+	font: inherit !important;
+	width: 150px !important;
+	box-sizing: border-box !important;
+	padding: 3px 6px !important;
+	color: var(--vscode-input-foreground, inherit) !important;
+	background: var(--vscode-input-background, rgba(127, 127, 127, 0.15)) !important;
+	border: 1px solid var(--vscode-input-border, transparent) !important;
+	border-radius: 2px !important;
+	outline: none !important;
+	vertical-align: middle !important;
+}
+.cm-search .cm-textfield:focus,
+.cm-dialog .cm-textfield:focus {
+	border-color: var(--vscode-focusBorder, #007fd4) !important;
+}
+
+.cm-search .cm-button {
+	font: inherit !important;
+	font-size: 11px !important;
+	vertical-align: middle !important;
+	margin: 0 0 0 2px !important;
+	padding: 2px 8px !important;
+	color: var(--vscode-button-secondaryForeground, inherit) !important;
+	background: var(--vscode-button-secondaryBackground, rgba(127, 127, 127, 0.2)) !important;
+	background-image: none !important;
+	border: 1px solid var(--vscode-button-border, transparent) !important;
+	border-radius: 2px !important;
+	cursor: pointer;
+}
+.cm-search .cm-button:hover {
+	background: var(--vscode-button-secondaryHoverBackground, rgba(127, 127, 127, 0.3)) !important;
+}
+.cm-search .cm-button:active {
+	background-image: none !important;
+}
+
+/* VS Code shows the case/regexp/whole-word toggles as small pressed-look icon
+   buttons; approximated here as compact chip-style labels (no codicon glyphs
+   available in this context), highlighting via `:has()` when their checkbox
+   is checked. */
+.cm-search label {
+	display: inline-block !important;
+	margin: 0 3px 0 0 !important;
+	padding: 2px 6px !important;
+	font-size: 11px !important;
+	white-space: nowrap !important;
+	border: 1px solid transparent;
+	border-radius: 2px;
+	cursor: pointer;
+}
+.cm-search label:has(input:checked) {
+	background: var(--vscode-inputOption-activeBackground, rgba(0, 122, 204, 0.3));
+	border-color: var(--vscode-inputOption-activeBorder, #007fd4);
+	color: var(--vscode-inputOption-activeForeground, inherit);
+}
+.cm-search input[type='checkbox'] {
+	margin: 0 3px 0 0 !important;
+	vertical-align: middle;
+	accent-color: var(--vscode-inputOption-activeBorder, #007fd4);
+}
+
+.cm-search button[name='close'] {
+	top: 5px !important;
+	right: 6px !important;
+	padding: 2px 4px !important;
+	font-size: 14px !important;
+	line-height: 1 !important;
+	color: var(--vscode-icon-foreground, inherit) !important;
+	background: transparent !important;
+	border-radius: 2px;
+	cursor: pointer;
+}
+.cm-search button[name='close']:hover {
+	background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.2)) !important;
+}
+
+/* Match highlight colors — VS Code's own find-match colors instead of the
+   library's hardcoded yellow/cyan. */
+.cm-searchMatch {
+	background: var(--vscode-editor-findMatchHighlightBackground, rgba(234, 92, 0, 0.33)) !important;
+}
+.cm-searchMatch-selected {
+	background: var(--vscode-editor-findMatchBackground, rgba(255, 165, 0, 0.5)) !important;
 }

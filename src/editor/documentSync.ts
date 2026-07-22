@@ -77,7 +77,7 @@ export class DocumentSyncSession {
 				void vscode.env.openExternal(vscode.Uri.parse(message.href));
 				break;
 			case 'pasteImage':
-				void this.handlePasteImage(message.atPos, message.mimeType, message.dataBase64);
+				void this.handlePasteImage(message.atPos, message.mimeType, message.dataBase64, message.needsOwnParagraph);
 				break;
 		}
 	}
@@ -92,7 +92,12 @@ export class DocumentSyncSession {
 	 * `handleDocumentChanged` → `externalUpdate` path deliver it to the
 	 * webview exactly as if it were an edit from another tab.
 	 */
-	private async handlePasteImage(atPos: number, mimeType: string, dataBase64: string): Promise<void> {
+	private async handlePasteImage(
+		atPos: number,
+		mimeType: string,
+		dataBase64: string,
+		needsOwnParagraph: boolean,
+	): Promise<void> {
 		const ext = extensionForMimeType(mimeType);
 		if (!ext) return; // unrecognized type — ignore rather than save a file with an unknown format
 
@@ -110,7 +115,11 @@ export class DocumentSyncSession {
 		const fileUri = vscode.Uri.joinPath(assetsDir, fileName);
 		await vscode.workspace.fs.writeFile(fileUri, Buffer.from(dataBase64, 'base64'));
 
-		const insertText = `![](assets/${fileName})`;
+		// `atPos` was relocated to just after a table (see `escapeTable` in
+		// imagePasteHandler.ts) when the cursor was inside one — a leading
+		// blank line separates the image into its own paragraph instead of
+		// running it straight onto the table's last line.
+		const insertText = needsOwnParagraph ? `\n\n![](assets/${fileName})` : `![](assets/${fileName})`;
 		const position = this.document.positionAt(atPos);
 		const edit = new vscode.WorkspaceEdit();
 		edit.insert(this.document.uri, position, insertText);
@@ -120,12 +129,14 @@ export class DocumentSyncSession {
 	}
 
 	private sendInit() {
+		const docDir = vscode.Uri.joinPath(this.document.uri, '..');
 		this.post({
 			type: 'init',
 			text: this.document.getText(),
 			version: this.document.version,
 			css: this.getCss(),
 			codeTheme: pickCodeTheme(),
+			baseUri: `${this.webviewPanel.webview.asWebviewUri(docDir).toString()}/`,
 		});
 		this.lastAppliedVersion = this.document.version;
 	}

@@ -18,6 +18,32 @@ export function isLineAligned(state: EditorState, from: number, to: number): boo
 	return from === state.doc.lineAt(from).from && to === state.doc.lineAt(to).to;
 }
 
+// The webview's document lives at a `vscode-webview://` origin, not the
+// actual folder holding the `.md` file — a Markdown image path like
+// `assets/foo.png`, meant to be relative to that folder, is meaningless
+// resolved against the webview's own origin instead, and the browser silently
+// fails to load it. `setImageBaseUri` is called once per `init` message with
+// a webview-loadable URI for the document's folder (see documentSync.ts), and
+// `resolveImageSrc` resolves a relative path against it at render time —
+// only the *displayed* `<img src>` is rewritten; the underlying Markdown
+// source keeps the plain, portable relative path.
+let imageBaseUri = '';
+export function setImageBaseUri(uri: string): void {
+	imageBaseUri = uri;
+}
+
+const ABSOLUTE_SRC_RE = /^([a-z][a-z0-9+.-]*:)/i;
+
+export function resolveImageSrc(src: string, baseUri: string): string {
+	if (ABSOLUTE_SRC_RE.test(src)) return src; // already a full URL (https:, data:, vscode-webview:, …)
+	if (!baseUri) return src;
+	try {
+		return new URL(src, baseUri).toString();
+	} catch {
+		return src;
+	}
+}
+
 class ImageWidget extends WidgetType {
 	constructor(
 		private readonly src: string,
@@ -30,7 +56,7 @@ class ImageWidget extends WidgetType {
 	}
 	toDOM(): HTMLElement {
 		const img = document.createElement('img');
-		img.src = this.src;
+		img.src = resolveImageSrc(this.src, imageBaseUri);
 		img.alt = this.alt;
 		img.className = 'mlp-image';
 		return img;
