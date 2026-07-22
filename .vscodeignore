@@ -8,6 +8,7 @@ src/**
 specs/**
 sample/**
 aidlc-docs/**
+doc/**
 esbuild.js
 tsconfig.json
 package-lock.json
