@@ -191,8 +191,32 @@ class TableWidget extends WidgetType {
 	}
 }
 
-function readCells(state: EditorState, rowNode: SyntaxNode): string[] {
-	return rowNode.getChildren('TableCell').map((cell) => state.sliceDoc(cell.from, cell.to).trim());
+// @lezer/markdown's table parser only emits a `TableCell` node for cells that
+// contain non-whitespace content — an empty cell (e.g. the middle column of
+// `| a | | c |`) produces no node at all. Reading cells via `getChildren`
+// therefore silently drops empty cells and shifts every later column left.
+// Splitting the row's raw text ourselves (mirroring the parser's own
+// leading/trailing-pipe trimming) keeps empty cells in place.
+export function readCells(state: EditorState, rowNode: SyntaxNode): string[] {
+	const text = state.sliceDoc(rowNode.from, rowNode.to);
+	const cells: string[] = [];
+	let cell = '';
+	let escaped = false;
+	for (const ch of text) {
+		if (ch === '|' && !escaped) {
+			cells.push(cell);
+			cell = '';
+			escaped = false;
+			continue;
+		}
+		cell += ch;
+		escaped = !escaped && ch === '\\';
+	}
+	cells.push(cell);
+	// A leading/trailing pipe produces a bounding empty segment, not a column.
+	if (cells.length > 1 && cells[0].trim() === '') cells.shift();
+	if (cells.length > 1 && cells[cells.length - 1].trim() === '') cells.pop();
+	return cells.map((c) => c.trim());
 }
 
 export function buildTableWidget(state: EditorState, node: SyntaxNodeRef): TableWidget {

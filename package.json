@@ -59,6 +59,11 @@
     "views": {
       "mdLivePreview": [
         {
+          "id": "mdLivePreview.outline",
+          "name": "アウトライン",
+          "type": "webview"
+        },
+        {
           "id": "mdLivePreview.styleManager",
           "name": " ",
           "type": "webview"
@@ -158,6 +163,8 @@
   "scripts": {
     "compile": "node esbuild.js && tsc --noEmit -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit -p tsconfig.json --watch",
     "vscode:prepublish": "node esbuild.js --production"
@@ -167,13 +174,16 @@
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.24.0",
-    "typescript": "^5.5.0"
+    "fast-check": "^4.9.0",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.7.1",
     "@codemirror/lang-markdown": "^6.3.1",
     "@codemirror/language": "^6.10.6",
+    "@codemirror/search": "^6.7.1",
     "@codemirror/state": "^6.4.1",
     "@codemirror/view": "^6.35.0",
     "@lezer/highlight": "^1.2.1",

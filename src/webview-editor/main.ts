@@ -2,6 +2,7 @@ import { EditorState, Annotation, type Extension, ChangeSet } from '@codemirror/
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import { search, searchKeymap, openSearchPanel } from '@codemirror/search';
 import { markdown } from '@codemirror/lang-markdown';
 import { GFM } from '@lezer/markdown';
 import { livePreviewPlugin, createLinkClickHandler } from './livePreviewPlugin';
@@ -10,6 +11,8 @@ import { blockDecorationsField } from './blockDecorations';
 import { detectFrontmatter } from './frontmatterWidget';
 import { headingSpaceInputHandler } from './headingSpacePlugin';
 import { backtickInputHandler } from './backtickPairPlugin';
+import { toggleEmphasisCommand } from './emphasisShortcuts';
+import { createImagePasteHandler } from './imagePasteHandler';
 import { postToHost, onHostMessage } from './vscodeApi';
 import { adaptMarkdownCss } from '../shared/cssAdapter';
 import type { TextChange } from '../shared/messages';
@@ -59,6 +62,17 @@ function applyUserCss(css: string) {
 	styleEl.textContent = adaptMarkdownCss(css);
 }
 
+// The default search panel from @codemirror/search always renders both a
+// search field and a replace field together (there is no separate "replace
+// panel"). Opening it via Ctrl+H focuses the replace field instead of the
+// search field, so a user reaching for "replace" lands where they meant to
+// type immediately, rather than having to Tab past the search field first.
+function openReplacePanel(view: EditorView): boolean {
+	openSearchPanel(view);
+	view.dom.querySelector<HTMLInputElement>('.cm-search input[name="replace"]')?.focus();
+	return true;
+}
+
 function createExtensions(): Extension[] {
 	const markdownSupport = markdown({ extensions: GFM });
 	return [
@@ -76,8 +90,12 @@ function createExtensions(): Extension[] {
 		blockDecorationsField,
 		codeHighlightExtension,
 		createLinkClickHandler((href) => postToHost({ type: 'openLink', href })),
+		createImagePasteHandler((atPos, mimeType, dataBase64) => postToHost({ type: 'pasteImage', atPos, mimeType, dataBase64 })),
+		search(),
 		keymap.of([
 			...closeBracketsKeymap,
+			...searchKeymap,
+			{ key: 'Mod-h', run: openReplacePanel },
 			// Flush any not-yet-sent keystrokes before asking the host to undo/redo —
 			// otherwise the host's document is missing the latest edits when it acts,
 			// undoing the wrong change and leaving the webview's local text duplicated
@@ -85,6 +103,8 @@ function createExtensions(): Extension[] {
 			{ key: 'Mod-z', run: () => { flushNow(); postToHost({ type: 'undo' }); return true; } },
 			{ key: 'Mod-y', run: () => { flushNow(); postToHost({ type: 'redo' }); return true; } },
 			{ key: 'Mod-Shift-z', run: () => { flushNow(); postToHost({ type: 'redo' }); return true; } },
+			{ key: 'Mod-b', run: toggleEmphasisCommand('**') },
+			{ key: 'Mod-i', run: toggleEmphasisCommand('*') },
 			indentWithTab,
 			...defaultKeymap,
 		]),
@@ -171,6 +191,21 @@ onHostMessage((message) => {
 		case 'applyCss':
 			applyUserCss(message.css);
 			break;
+		case 'jumpToLine': {
+			if (!view) return;
+			const { doc } = view.state;
+			if (message.line < 1 || message.line > doc.lines) return;
+			const pos = doc.line(message.line).from;
+			view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+			view.focus();
+			break;
+		}
+		case 'setCursor': {
+			if (!view) return;
+			const pos = Math.max(0, Math.min(message.pos, view.state.doc.length));
+			view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+			break;
+		}
 	}
 });
 

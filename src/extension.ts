@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { MarkdownLivePreviewProvider } from './editor/MarkdownLivePreviewProvider';
 import { StyleManagerViewProvider } from './sidebar/StyleManagerViewProvider';
 import { StyleStore } from './sidebar/styleStore';
+import { OutlineViewProvider } from './sidebar/OutlineViewProvider';
 
 function getActiveMarkdownUri(): vscode.Uri | undefined {
 	if (vscode.window.activeTextEditor?.document.languageId === 'markdown') {
@@ -152,6 +153,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(StyleManagerViewProvider.viewType, styleManagerProvider),
 	);
+
+	const outlineProvider = new OutlineViewProvider(context, provider);
+	context.subscriptions.push(vscode.window.registerWebviewViewProvider(OutlineViewProvider.viewType, outlineProvider));
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('mdLivePreview.openWithLivePreview', async () => {

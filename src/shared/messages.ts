@@ -1,3 +1,5 @@
+import type { HeadingItem } from './headings';
+
 export interface TextChange {
 	from: number;
 	to: number;
@@ -21,14 +23,17 @@ export type HostToEditorMessage =
 	| { type: 'externalUpdate'; changes: TextChange[]; version: number }
 	| { type: 'ackEdit'; version: number }
 	| { type: 'codeTokens'; blocks: CodeBlockTokens[] }
-	| { type: 'applyCss'; css: string };
+	| { type: 'applyCss'; css: string }
+	| { type: 'jumpToLine'; line: number }
+	| { type: 'setCursor'; pos: number };
 
 export type EditorToHostMessage =
 	| { type: 'ready' }
 	| { type: 'edit'; baseVersion: number; changes: TextChange[] }
 	| { type: 'undo' }
 	| { type: 'redo' }
-	| { type: 'openLink'; href: string };
+	| { type: 'openLink'; href: string }
+	| { type: 'pasteImage'; atPos: number; mimeType: string; dataBase64: string };
 
 export interface StyleEntry {
 	id: string;
@@ -71,3 +76,12 @@ export type HostToPreviewMessage =
 	// (null clears the highlight).
 	| { type: 'highlight'; selector: string | null };
 export type PreviewToHostMessage = { type: 'ready' };
+
+// Outline (heading list) sidebar view.
+export type HostToOutlineMessage =
+	| { type: 'update'; headings: HeadingItem[] }
+	// No Markdown Live Preview panel is currently active (none open, or focus
+	// moved away from any of them).
+	| { type: 'noDocument' };
+
+export type OutlineToHostMessage = { type: 'ready' } | { type: 'jumpToHeading'; line: number };

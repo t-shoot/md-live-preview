@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { DocumentSyncSession } from './documentSync';
+import { extractHeadings } from '../shared/headings';
+import type { HeadingItem } from '../shared/headings';
 
 export class MarkdownLivePreviewProvider implements vscode.CustomTextEditorProvider {
 	static readonly viewType = 'mdLivePreview.editor';
@@ -47,6 +49,35 @@ export class MarkdownLivePreviewProvider implements vscode.CustomTextEditorProvi
 		for (const session of this.sessions) {
 			session.notifyCssChanged();
 		}
+	}
+
+	/**
+	 * Finds the session for the currently active Markdown Live Preview editor
+	 * tab, matched by tab viewType and URI — the same tab-lookup pattern
+	 * `extension.ts` already uses for the "open with source" command, rather
+	 * than tracking webview panel focus separately.
+	 */
+	private findActiveSession(): DocumentSyncSession | undefined {
+		const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+		if (!(input instanceof vscode.TabInputCustom) || input.viewType !== MarkdownLivePreviewProvider.viewType) {
+			return undefined;
+		}
+		const uriKey = input.uri.toString();
+		for (const session of this.sessions) {
+			if (session.getDocument().uri.toString() === uriKey) return session;
+		}
+		return undefined;
+	}
+
+	/** Headings of the currently active Markdown Live Preview document, or `undefined` if none is active. */
+	getActiveHeadings(): HeadingItem[] | undefined {
+		const session = this.findActiveSession();
+		return session ? extractHeadings(session.getDocument().getText()) : undefined;
+	}
+
+	/** Asks the currently active Markdown Live Preview panel to move its cursor to the given line. */
+	jumpToActiveHeading(line: number): void {
+		this.findActiveSession()?.jumpToLine(line);
 	}
 
 	private buildHtml(webview: vscode.Webview): string {

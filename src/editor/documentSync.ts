@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { EditorToHostMessage, HostToEditorMessage, TextChange } from '../shared/messages';
 import { pickCodeTheme, tokenizeDocument } from './shikiHost';
+import { extensionForMimeType, generateImageFileName } from '../shared/imageAssets';
 
 const REHIGHLIGHT_DEBOUNCE_MS = 150;
 
@@ -75,7 +76,47 @@ export class DocumentSyncSession {
 			case 'openLink':
 				void vscode.env.openExternal(vscode.Uri.parse(message.href));
 				break;
+			case 'pasteImage':
+				void this.handlePasteImage(message.atPos, message.mimeType, message.dataBase64);
+				break;
 		}
+	}
+
+	/**
+	 * Saves a pasted/dropped image under an `assets/` folder beside the
+	 * document and inserts a Markdown image link at `atPos`. This edit
+	 * originates on the host (the final relative path is only known after
+	 * writing the file), unlike every other edit in this class — so it is
+	 * applied as a plain `vscode.WorkspaceEdit` (not via `applyEdit()`) and
+	 * deliberately does *not* set `applyingLocalEdit`, letting the existing
+	 * `handleDocumentChanged` → `externalUpdate` path deliver it to the
+	 * webview exactly as if it were an edit from another tab.
+	 */
+	private async handlePasteImage(atPos: number, mimeType: string, dataBase64: string): Promise<void> {
+		const ext = extensionForMimeType(mimeType);
+		if (!ext) return; // unrecognized type — ignore rather than save a file with an unknown format
+
+		const docDir = vscode.Uri.joinPath(this.document.uri, '..');
+		const assetsDir = vscode.Uri.joinPath(docDir, 'assets');
+		await vscode.workspace.fs.createDirectory(assetsDir);
+
+		let existingNames: string[];
+		try {
+			existingNames = (await vscode.workspace.fs.readDirectory(assetsDir)).map(([name]) => name);
+		} catch {
+			existingNames = [];
+		}
+		const fileName = generateImageFileName(new Set(existingNames), Date.now(), ext);
+		const fileUri = vscode.Uri.joinPath(assetsDir, fileName);
+		await vscode.workspace.fs.writeFile(fileUri, Buffer.from(dataBase64, 'base64'));
+
+		const insertText = `![](assets/${fileName})`;
+		const position = this.document.positionAt(atPos);
+		const edit = new vscode.WorkspaceEdit();
+		edit.insert(this.document.uri, position, insertText);
+		await vscode.workspace.applyEdit(edit);
+
+		this.post({ type: 'setCursor', pos: atPos + insertText.length });
 	}
 
 	private sendInit() {
@@ -170,6 +211,14 @@ export class DocumentSyncSession {
 
 	notifyCssChanged() {
 		this.post({ type: 'applyCss', css: this.getCss() });
+	}
+
+	getDocument(): vscode.TextDocument {
+		return this.document;
+	}
+
+	jumpToLine(line: number): void {
+		this.post({ type: 'jumpToLine', line });
 	}
 
 	dispose() {

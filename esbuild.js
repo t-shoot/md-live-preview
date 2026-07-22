@@ -79,8 +79,28 @@ const webviewPreviewConfig = {
 	plugins: [esbuildProblemMatcherPlugin],
 };
 
+/** @type {import('esbuild').BuildOptions} */
+const webviewOutlineConfig = {
+	entryPoints: ['src/webview-outline/main.ts'],
+	bundle: true,
+	outfile: 'dist/webview-outline.js',
+	platform: 'browser',
+	format: 'iife',
+	target: 'es2022',
+	sourcemap: !production,
+	minify: production,
+	logLevel: 'silent',
+	plugins: [esbuildProblemMatcherPlugin],
+};
+
 async function main() {
-	const configs = [extensionConfig, webviewEditorConfig, webviewSidebarConfig, webviewPreviewConfig];
+	const configs = [
+		extensionConfig,
+		webviewEditorConfig,
+		webviewSidebarConfig,
+		webviewPreviewConfig,
+		webviewOutlineConfig,
+	];
 
 	if (watch) {
 		const contexts = await Promise.all(configs.map((cfg) => esbuild.context(cfg)));
